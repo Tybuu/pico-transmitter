@@ -1,0 +1,30 @@
+# 20.072 per a bit
+start:
+  pull block
+  set X, 6
+cond:
+  jmp X--, loop
+  jmp start
+loop:
+  out Y, 1
+  jmp !Y, high
+  set Y, 13 
+low_loop:
+  set PINS, 1 [31]
+  nop [31]
+  nop [31]
+  set PINS, 0 [31]
+  nop [31]
+  nop [31]
+  jmp Y-- low_loop
+  jmp cond
+high:
+  set Y, 19
+high_loop:
+  set PINS, 1 [31]
+  nop [31]
+  set PINS, 0 [31]
+  nop [31]
+  jmp Y--, high_loop
+  nop [31]
+  jmp cond [26]
