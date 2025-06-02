@@ -1,5 +1,3 @@
-//! This example test the RP Pico on board LED.
-//!
 //! It does not work with the RP Pico W board. See wifi_blinky.rs.
 
 #![no_std]
@@ -119,11 +117,11 @@ async fn core1_task(
     let mut bits: [bool; 13] = [
         true, true, true, false, false, true, false, false, false, false, false, false, false,
     ];
-    const BIT_PERIOD: u64 = 500;
+    const BIT_PERIOD: u64 = 250;
     let mut ticker = Ticker::every(Duration::from_micros(BIT_PERIOD));
     let mut last_pressed = Instant::now();
     loop {
-        if last_pressed.elapsed() > Duration::from_micros(BIT_PERIOD * 13) {
+        if last_pressed.elapsed() > Duration::from_micros(BIT_PERIOD * 26) {
             let res = CHANNEL.receive().await;
             bits[7] = res[0];
             bits[8] = res[0];
@@ -153,6 +151,7 @@ async fn core1_task(
                     p.top().write(|w| w.set_top(2500));
                     // pwm.set_config(&c_low);
                 }
+                p.ctr().write(|w| w.set_ctr(0));
                 ticker.next().await;
             }
             pwm.set_duty_cycle_fully_off().unwrap();
