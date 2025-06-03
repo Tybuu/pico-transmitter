@@ -82,9 +82,9 @@ async fn core0_task(p0: PeripheralRef<'static, PIN_17>, p1: PeripheralRef<'stati
             if current_state != bool_states {
                 info!("State: {}", current_state);
                 bool_states = current_state;
-                CHANNEL.send(bool_states).await;
+                // CHANNEL.send(bool_states).await;
             }
-            // CHANNEL.send([true, true]).await;
+            CHANNEL.send([true, true]).await;
             // if states[0].is_pressed() {
             //     CHANNEL.send([true, true]).await;
             // }
@@ -113,7 +113,7 @@ async fn core1_task(
     c_low.top = 2500;
     c_low.compare_b = 1250;
     let mut pwm = Pwm::new_output_b(slice, pin, c_low.clone());
-    pwm.set_duty_cycle_fully_off().unwrap();
+    // pwm.set_duty_cycle_fully_off().unwrap();
     let mut bits: [bool; 13] = [
         true, true, true, false, false, true, false, false, false, false, false, false, false,
     ];
@@ -121,41 +121,60 @@ async fn core1_task(
     let mut ticker = Ticker::every(Duration::from_micros(BIT_PERIOD));
     let mut last_pressed = Instant::now();
     loop {
-        if last_pressed.elapsed() > Duration::from_micros(BIT_PERIOD * 26) {
-            let res = CHANNEL.receive().await;
-            bits[7] = res[0];
-            bits[8] = res[0];
-            bits[9] = res[0];
-            bits[10] = res[1];
-            bits[11] = res[1];
-            bits[12] = res[1];
-            info!("Recevied: {}", res);
-            info!("transmitting {}", bits);
-            ticker.reset();
-            // if res[0] {
-            //     bits = [true; 10];
-            // } else {
-            //     bits = [false; 10];
-            // }
-            for bit in bits {
-                if bit {
-                    p.cc().write(|w| {
-                        w.set_b(625);
-                    });
-                    p.top().write(|w| w.set_top(1249));
-                    // pwm.set_config(&c_high);
-                } else {
-                    p.cc().write(|w| {
-                        w.set_b(1249);
-                    });
-                    p.top().write(|w| w.set_top(2500));
-                    // pwm.set_config(&c_low);
-                }
-                p.ctr().write(|w| w.set_ctr(0));
-                ticker.next().await;
+        let mut bit = false;
+        loop {
+            if bit {
+                p.cc().write(|w| {
+                    w.set_b(625);
+                });
+                p.top().write(|w| w.set_top(1249));
+                // pwm.set_config(&c_high);
+            } else {
+                p.cc().write(|w| {
+                    w.set_b(1249);
+                });
+                p.top().write(|w| w.set_top(2500));
+                // pwm.set_config(&c_low);
             }
-            pwm.set_duty_cycle_fully_off().unwrap();
-            last_pressed = Instant::now();
+            p.ctr().write(|w| w.set_ctr(0));
+            bit = !bit;
+            Timer::after_millis(500).await;
         }
+        // if last_pressed.elapsed() > Duration::from_micros(BIT_PERIOD * 26) {
+        //     let res = CHANNEL.receive().await;
+        //     bits[7] = res[0];
+        //     bits[8] = res[0];
+        //     bits[9] = res[0];
+        //     bits[10] = res[1];
+        //     bits[11] = res[1];
+        //     bits[12] = res[1];
+        //     info!("Recevied: {}", res);
+        //     info!("transmitting {}", bits);
+        //     ticker.reset();
+        //     if res[0] {
+        //         bits = [true; 13];
+        //     } else {
+        //         bits = [false; 13];
+        //     }
+        //     for bit in bits {
+        //         if bit {
+        //             p.cc().write(|w| {
+        //                 w.set_b(625);
+        //             });
+        //             p.top().write(|w| w.set_top(1249));
+        //             // pwm.set_config(&c_high);
+        //         } else {
+        //             p.cc().write(|w| {
+        //                 w.set_b(1249);
+        //             });
+        //             p.top().write(|w| w.set_top(2500));
+        //             // pwm.set_config(&c_low);
+        //         }
+        //         p.ctr().write(|w| w.set_ctr(0));
+        //         ticker.next().await;
+        //     }
+        //     pwm.set_duty_cycle_fully_off().unwrap();
+        //     last_pressed = Instant::now();
+        // }
     }
 }
