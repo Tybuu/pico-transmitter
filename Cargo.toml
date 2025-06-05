@@ -58,3 +58,12 @@ debug = 2
 [profile.dev]
 lto = true
 opt-level = "z"
+
+[patch.crates-io]
+embassy-rp = { git = "https://github.com/embassy-rs/embassy.git", package = "embassy-rp" }
+embassy-time = { git = "https://github.com/embassy-rs/embassy.git", package = "embassy-time" }
+embassy-time-driver = { git = "https://github.com/embassy-rs/embassy.git", package = "embassy-time-driver" }
+embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", package = "embassy-sync" }
+embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", package = "embassy-executor" }
+embassy-embedded-hal = { git = "https://github.com/embassy-rs/embassy.git", package = "embassy-embedded-hal" }
+embassy-futures = { git = "https://github.com/embassy-rs/embassy.git", package = "embassy-futures" }
