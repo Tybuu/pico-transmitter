@@ -14,7 +14,7 @@ use embassy_rp::clocks::{clk_sys_freq, ClockConfig};
 use embassy_rp::config::Config;
 use embassy_rp::gpio::{Input, Level, Output, Pin, Pull};
 use embassy_rp::multicore::{spawn_core1, Stack};
-use embassy_rp::pac::PWM;
+use embassy_rp::pac::{PADS_BANK0, PWM};
 use embassy_rp::peripherals::{DMA_CH0, PIN_15, PIN_16, PIN_17, PIO0, PWM_SLICE7};
 use embassy_rp::pwm::{self, Slice};
 use embassy_rp::pwm::{Pwm, SetDutyCycle};
@@ -56,11 +56,19 @@ async fn main(_spawner: Spawner) {
     c_low.top = 311;
     c_low.compare_b = 156;
 
+    // Make the transitions between low and high sharper to have stronger signals
+    PADS_BANK0.gpio(15).modify(|x| {
+        x.set_drive(pac::pads::vals::Drive::_12M_A);
+    });
+    PADS_BANK0.gpio(13).modify(|x| {
+        x.set_drive(pac::pads::vals::Drive::_12M_A);
+    });
+
     let high_pwm = Pwm::new_output_b(p.PWM_SLICE7, p.PIN_15, c_high);
     let low_pwm = Pwm::new_output_b(p.PWM_SLICE6, p.PIN_13, c_low);
 
     let en = PWM.en().as_ptr() as *mut u32;
-    let mut tranmitter = Transmitter::new(dma0, en);
+    // let mut tranmitter = Transmitter::new(dma0, en);
 
     let mut inputs = [
         Input::new(p.PIN_17, Pull::Down),
@@ -82,11 +90,11 @@ async fn main(_spawner: Spawner) {
                 states = current_state;
                 bits.set_bits(current_state);
                 info!("{}", bits.get_ref());
-                tranmitter.transmit_data(bits.get_ref()).await;
+                // tranmitter.transmit_data(bits.get_ref()).await;
                 // tranmitter
                 //     .transmit_data_timed(bits.get_ref(), Duration::from_millis(500))
                 //     .await;
-                Timer::after_micros(500).await;
+                Timer::after_micros(1000).await;
             }
             if !debouncers[0].is_pressed() && !debouncers[1].is_pressed() {
                 break;
