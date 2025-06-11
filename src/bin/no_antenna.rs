@@ -30,18 +30,12 @@ static EXECUTOR0: StaticCell<Executor> = StaticCell::new();
 static EXECUTOR1: StaticCell<Executor> = StaticCell::new();
 static CHANNEL: Channel<CriticalSectionRawMutex, [bool; 2], 5> = Channel::new();
 
-const HIGH: u32 = 1 << 7;
-const LOW: u32 = 1 << 6;
-
-const BARKER_CODE: [u32; 7] = [HIGH, HIGH, HIGH, LOW, LOW, HIGH, LOW];
-const REPITITION_SIZE: usize = 3;
-const NUM_DATA_BITS: usize = 2;
-const BUFFER_SIZE: usize = BARKER_CODE.len() + NUM_DATA_BITS * REPITITION_SIZE;
+const HIGH: u32 = 1 << 4;
+const LOW: u32 = 2 << 4;
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
     info!("Device Started!");
-    info!("Buffer Size: {}", BUFFER_SIZE);
     // let clk_cfg = ClockConfig::system_freq(200_000_000).unwrap();
     // let p = embassy_rp::init(Config::new(clk_cfg));
     let p = embassy_rp::init(Default::default());
@@ -50,55 +44,25 @@ async fn main(_spawner: Spawner) {
     let dma0 = p.DMA_CH0;
     let mut c_high = pwm::Config::default();
     c_high.top = 207;
-    c_high.compare_b = 108;
-
-    let mut c_low = pwm::Config::default();
-    c_low.top = 311;
-    c_low.compare_b = 156;
+    c_high.compare_b = 104;
 
     // Make the transitions between low and high sharper to have stronger signals
-    PADS_BANK0.gpio(15).modify(|x| {
-        x.set_drive(pac::pads::vals::Drive::_12M_A);
-    });
-    PADS_BANK0.gpio(13).modify(|x| {
-        x.set_drive(pac::pads::vals::Drive::_12M_A);
-    });
+    // PADS_BANK0.gpio(15).modify(|x| {
+    //     x.set_drive(pac::pads::vals::Drive::_12M_A);
+    // });
 
     let high_pwm = Pwm::new_output_b(p.PWM_SLICE7, p.PIN_15, c_high);
-    let low_pwm = Pwm::new_output_b(p.PWM_SLICE6, p.PIN_13, c_low);
-
-    let en = PWM.en().as_ptr() as *mut u32;
-    // let mut tranmitter = Transmitter::new(dma0, en);
-
-    let mut inputs = [
-        Input::new(p.PIN_17, Pull::Down),
-        Input::new(p.PIN_16, Pull::Down),
-    ];
-    let mut debouncers = [Debouncer::default(); 2];
-    let mut states = [false, false];
-    let mut bits = Bits::default();
+    let reg = PWM.ch(7).div().as_ptr() as *mut u32;
     loop {
-        let (i0, i1) = inputs.split_at_mut(1);
-        // select(i0[0].wait_for_high(), i1[0].wait_for_high()).await;
         loop {
-            let mut current_state = states;
-            debouncers[0].update_buf(inputs[0].get_level().into());
-            debouncers[1].update_buf(inputs[1].get_level().into());
-            current_state[0] = debouncers[0].is_pressed();
-            current_state[1] = debouncers[1].is_pressed();
-            if current_state != states {
-                states = current_state;
-                bits.set_bits(current_state);
-                info!("{}", bits.get_ref());
-                // tranmitter.transmit_data(bits.get_ref()).await;
-                // tranmitter
-                //     .transmit_data_timed(bits.get_ref(), Duration::from_millis(500))
-                //     .await;
-                Timer::after_micros(1000).await;
+            unsafe {
+                reg.write(HIGH);
             }
-            if !debouncers[0].is_pressed() && !debouncers[1].is_pressed() {
-                break;
+            Timer::after_millis(500).await;
+            unsafe {
+                reg.write(LOW);
             }
+            Timer::after_millis(500).await;
         }
     }
 }
@@ -150,30 +114,5 @@ impl Transmitter {
         unsafe {
             self.reg.write_volatile(0);
         }
-    }
-}
-
-struct Bits {
-    bits: [u32; BUFFER_SIZE],
-}
-
-impl Bits {
-    fn default() -> Self {
-        let mut bits = [LOW; BUFFER_SIZE];
-        bits[0..BARKER_CODE.len()].copy_from_slice(&BARKER_CODE);
-        Self { bits }
-    }
-
-    fn set_bits(&mut self, data: [bool; NUM_DATA_BITS]) {
-        for i in 0..NUM_DATA_BITS {
-            let start = BARKER_CODE.len() + i * REPITITION_SIZE;
-            let end = start + REPITITION_SIZE;
-            let val = if data[i] { HIGH } else { LOW };
-            self.bits[start..end].iter_mut().for_each(|x| *x = val);
-        }
-    }
-
-    fn get_ref(&self) -> &[u32] {
-        &self.bits
     }
 }
